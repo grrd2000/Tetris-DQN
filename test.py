@@ -29,12 +29,10 @@ def test(options):
     else:
         model = torch.load("{}/tetris_100".format(options.saved_path), map_location=lambda storage, loc: storage)'''
     torch.manual_seed(123)
-    model = torch.load("{}/tetris_2000".format(options.saved_path), map_location=lambda storage, loc: storage)
+    model = torch.load("{}/tetris_3000".format(options.saved_path), map_location=lambda storage, loc: storage)
     model.eval()
     env = Tetris(width=options.width, height=options.height, block_size=options.block_size)
     env.reset()
-    if torch.cuda.is_available():
-        model.cuda()
     fourcc = cv2.VideoWriter_fourcc(*'FMP4')
     out = cv2.VideoWriter(options.output, fourcc, options.fps,
                           (int(1.5 * options.width * options.block_size), options.height * options.block_size))

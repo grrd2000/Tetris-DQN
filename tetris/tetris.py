@@ -9,19 +9,6 @@ import random
 style.use("ggplot")
 
 
-def rotate(piece):
-    num_rows_orig = num_cols_new = len(piece)
-    num_rows_new = len(piece[0])
-    rotated_array = []
-
-    for i in range(num_rows_new):
-        new_row = [0] * num_cols_new
-        for j in range(num_cols_new):
-            new_row[j] = piece[(num_rows_orig - 1) - j][i]
-        rotated_array.append(new_row)
-    return rotated_array
-
-
 class Tetris:
     piece_colors = [
         (17, 17, 17),
@@ -120,7 +107,7 @@ class Tetris:
         states = {}
         piece_id = self.ind
         curr_piece = [row[:] for row in self.piece]
-        if piece_id == 0:  # O piece
+        if piece_id == 0:
             num_rotations = 1
         elif piece_id == 2 or piece_id == 3 or piece_id == 4:
             num_rotations = 2
@@ -275,4 +262,17 @@ class Tetris:
             video.write(img)
 
         cv2.imshow("Deep Q-Learning Tetris", img)
-        cv2.waitKey(100)
+        cv2.waitKey(10)
+
+
+def rotate(piece):
+    num_rows_orig = num_cols_new = len(piece)
+    num_rows_new = len(piece[0])
+    rotated_array = []
+
+    for i in range(num_rows_new):
+        new_row = [0] * num_cols_new
+        for j in range(num_cols_new):
+            new_row[j] = piece[(num_rows_orig - 1) - j][i]
+        rotated_array.append(new_row)
+    return rotated_array
