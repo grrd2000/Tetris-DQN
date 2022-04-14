@@ -2,7 +2,6 @@ import numpy as np
 from PIL import Image
 import cv2
 from matplotlib import style
-from matplotlib.pyplot import plot as plt
 import torch
 import random
 
@@ -196,7 +195,7 @@ class Tetris:
             board = [[0 for _ in range(self.width)]] + board
         return board
 
-    def step(self, action, render=True, video=None):
+    def step(self, action, render=True, vid=None):
         x, num_rotations = action
         self.current_pos = {"x": x, "y": 0}
         for _ in range(num_rotations):
@@ -205,7 +204,7 @@ class Tetris:
         while not self.check_collision(self.piece, self.current_pos):
             self.current_pos["y"] += 1
             if render:
-                self.render(video)
+                self.render(vid)
 
         overflow = self.truncate(self.piece, self.current_pos)
         if overflow:

@@ -3,12 +3,14 @@ import torch
 import cv2
 from tetris.tetris import Tetris
 
+video = True
+
 
 def get_args():
     parser = argparse.ArgumentParser("""Implementation of Deep Q Network to play Tetris""")
 
     parser.add_argument("--width", type=int, default=10, help="The common width for all images")
-    parser.add_argument("--height", type=int, default=20, help="The common height for all images")
+    parser.add_argument("--height", type=int, default=24, help="The common height for all images")
     parser.add_argument("--block_size", type=int, default=30, help="Size of a block")
     parser.add_argument("--fps", type=int, default=60, help="frames per second")
     parser.add_argument("--saved_path", type=str, default="trained_models")
@@ -45,7 +47,7 @@ def test(options):
         predictions = model(next_states)[:, 0]
         index = torch.argmax(predictions).item()
         action = next_actions[index]
-        _, done = env.step(action, render=True, video=out)
+        _, done = env.step(action, render=video, vid=out)
 
         if done:
             out.release()

@@ -12,11 +12,13 @@ from DQN.dqn import DeepQNetwork
 from tetris.tetris import Tetris
 from collections import deque
 
+video = False
+
 
 def get_args():
     parser = argparse.ArgumentParser("""Implementation of Deep Q Network to play Tetris""")
-    parser.add_argument("--width", type=int, default=20, help="The common width for all images")
-    parser.add_argument("--height", type=int, default=20, help="The common height for all images")
+    parser.add_argument("--width", type=int, default=10, help="The common width for all images")
+    parser.add_argument("--height", type=int, default=24, help="The common height for all images")
     parser.add_argument("--block_size", type=int, default=30, help="Size of a block")
     parser.add_argument("--batch_size", type=int, default=512, help="The number of images per batch")
     parser.add_argument("--max_epoch_score", type=int, default=10000, help="Maximum points per epoch")
@@ -76,7 +78,7 @@ def train(options):
         next_state = next_states[index, :]
         action = next_actions[index]
 
-        reward, done = env.step(action, render=False)
+        reward, done = env.step(action, render=video)
 
         replay_memory.append([state, reward, next_state, done])
         if done:
