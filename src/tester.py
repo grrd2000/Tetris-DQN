@@ -1,7 +1,7 @@
 import argparse
 import torch
 import cv2
-from tetris.tetris import Tetris
+from src.tetris import Tetris
 
 video = True
 
@@ -12,9 +12,9 @@ def get_args():
     parser.add_argument("--width", type=int, default=10, help="The common width for all images")
     parser.add_argument("--height", type=int, default=24, help="The common height for all images")
     parser.add_argument("--block_size", type=int, default=30, help="Size of a block")
-    parser.add_argument("--fps", type=int, default=60, help="frames per second")
-    parser.add_argument("--saved_path", type=str, default="trained_models")
-    parser.add_argument("--output", type=str, default="output.avi")
+    parser.add_argument("--fps", type=int, default=120, help="frames per second")
+    parser.add_argument("--saved_path", type=str, default="output/trained_models")
+    parser.add_argument("--output", type=str, default="output/recordings/output.avi")
 
     args = parser.parse_args()
     return args
@@ -27,11 +27,11 @@ def test(options):
     else:
         torch.manual_seed(123)
     if torch.cuda.is_available():
-        model = torch.load("{}/tetris_100".format(options.saved_path))
+        model = torch.load("{}/tetris_3000".format(options.saved_path))
     else:
-        model = torch.load("{}/tetris_100".format(options.saved_path), map_location=lambda storage, loc: storage)'''
-    torch.manual_seed(123)
-    model = torch.load("{}/tetris_3000".format(options.saved_path), map_location=lambda storage, loc: storage)
+        model = torch.load("{}/tetris_3000".format(options.saved_path), map_location=lambda storage, loc: storage)'''
+    torch.manual_seed(777)
+    model = torch.load("{}/tetris_best_3045".format(options.saved_path), map_location=lambda storage, loc: storage)
     model.eval()
     env = Tetris(width=options.width, height=options.height, block_size=options.block_size)
     env.reset()

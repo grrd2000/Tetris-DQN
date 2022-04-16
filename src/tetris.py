@@ -24,7 +24,7 @@ class Tetris:
         [[1, 1],  # square
          [1, 1]],
 
-        [[0, 2, 0],  # piramid
+        [[0, 2, 0],  # pyramid
          [2, 2, 2]],
 
         [[0, 3, 3],  # reversed Z
@@ -261,7 +261,7 @@ class Tetris:
             video.write(img)
 
         cv2.imshow("Deep Q-Learning Tetris", img)
-        cv2.waitKey(10)
+        cv2.waitKey(50)
 
 
 def rotate(piece):
