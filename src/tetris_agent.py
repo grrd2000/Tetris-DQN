@@ -21,14 +21,15 @@ def get_args():
     parser.add_argument("--block_size", type=int, default=30, help="Size of a block")
     parser.add_argument("--batch_size", type=int, default=512, help="The number of images per batch")
     parser.add_argument("--max_epoch_score", type=int, default=100000, help="Maximum points per epoch")
-    parser.add_argument("--lr", type=float, default=1e-3)
+    parser.add_argument("--lr", type=float, default=0.001)
     parser.add_argument("--gamma", type=float, default=0.95)
     parser.add_argument("--initial_epsilon", type=float, default=0.9)
-    parser.add_argument("--final_epsilon", type=float, default=0.05)
-    parser.add_argument("--num_decay_epochs", type=float, default=200)
+    parser.add_argument("--final_epsilon", type=float, default=0.001)
+    parser.add_argument("--num_decay_epochs", type=float, default=500)
     parser.add_argument("--num_epochs", type=int, default=5000)
     parser.add_argument("--save_interval", type=int, default=5000)
-    parser.add_argument("--replay_memory_size", type=int, default=2000, help="Number of epochs between testing phases")
+    parser.add_argument("--replay_memory_size", type=int, default=700, help="Number of epochs between testing phases")
+    parser.add_argument("--plot_scores", type=bool, default=True)
     parser.add_argument("--log_path", type=str, default="output/tensorboard")
     parser.add_argument("--saved_path", type=str, default="output/trained_models")
 
@@ -62,9 +63,10 @@ def train(options):
     plot_scores = []
     plot_mean_scores = []
     while epoch < options.num_epochs:
-        next_steps = env.get_next_states()
+        next_steps = env.get_next_states_tensor()
         epsilon = options.final_epsilon + (max(options.num_decay_epochs - epoch, 0) * (
                 options.initial_epsilon - options.final_epsilon) / options.num_decay_epochs)
+        # print(epsilon)
         u = random()
         random_action = u <= epsilon
         next_actions, next_states = zip(*next_steps.items())
@@ -81,7 +83,7 @@ def train(options):
         next_state = next_states[index, :]
         action = next_actions[index]
 
-        reward, done = env.step(action, render=video)
+        reward, score, done = env.step(action, render=video)
 
         replay_memory.append([state, reward, next_state, done])
         if done:
@@ -128,15 +130,16 @@ def train(options):
         writer.add_scalar('Train/Tetrominoes', final_tetrominoes, epoch - 1)
         writer.add_scalar('Train/Cleared lines', final_cleared_lines, epoch - 1)
 
-        plot_scores.append(final_score)
-        total_score += final_score
-        mean_score = total_score / epoch
-        plot_mean_scores.append(mean_score)
-        plot(plot_scores, plot_mean_scores)
+        if options.plot_scores:
+            plot_scores.append(final_score)
+            total_score += final_score
+            mean_score = total_score / epoch
+            plot_mean_scores.append(mean_score)
+            if epoch % 3 == 0:
+                plot(plot_scores, plot_mean_scores)
 
         if epoch > 0 and epoch % options.save_interval == 0:
             torch.save(model, "{}/tetris_{}".format(options.saved_path, epoch))
-
         if best_score < final_score and epoch >= 500:
             best_score = final_score
             print("~BEST SCORE!~ Score: {}, Epoch: {}".format(best_score, epoch))

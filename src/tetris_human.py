@@ -42,7 +42,7 @@ class Tetris:
          [7, 7, 7]]
     ]
 
-    def __init__(self, height=24, width=10, block_size=20, maxScore=1000):
+    def __init__(self, height=24, width=10, block_size=20, maxScore=10000):
         self.current_pos = None
         self.gameOver = None
         self.piece = None
@@ -72,23 +72,14 @@ class Tetris:
         self.piece = [row[:] for row in self.pieces[self.ind]]
         self.current_pos = {"x": self.width // 2 - len(self.piece[0]) // 2, "y": 0}
         self.gameOver = False
-        return self.get_state_properties_tensor(self.board)
-
-    def get_state_properties_tensor(self, board):
-        lines_cleared, board = self.check_cleared_rows(board)
-        holes = self.get_holes(board)
-        bumpiness, height = self.get_bumpiness_and_height(board)
-        new_tensor = torch.FloatTensor([lines_cleared, holes, bumpiness, height])
-
-        return new_tensor
+        return self.get_state_properties(self.board)
 
     def get_state_properties(self, board):
         lines_cleared, board = self.check_cleared_rows(board)
         holes = self.get_holes(board)
         bumpiness, height = self.get_bumpiness_and_height(board)
-        new_state = [lines_cleared, holes, bumpiness, height]
 
-        return new_state
+        return torch.FloatTensor([lines_cleared, holes, bumpiness, height])
 
     def get_holes(self, board):
         num_holes = 0
@@ -110,30 +101,6 @@ class Tetris:
         diffs = np.abs(currs - nexts)
         total_bumpiness = np.sum(diffs)
         return total_bumpiness, total_height
-
-    def get_next_states_tensor(self):
-        states = {}
-        piece_id = self.ind
-        curr_piece = [row[:] for row in self.piece]
-        if piece_id == 0:
-            num_rotations = 1
-        elif piece_id == 2 or piece_id == 3 or piece_id == 4:
-            num_rotations = 2
-        else:
-            num_rotations = 4
-
-        for i in range(num_rotations):
-            valid_xs = self.width - len(curr_piece[0])
-            for x in range(valid_xs + 1):
-                piece = [row[:] for row in curr_piece]
-                pos = {"x": x, "y": 0}
-                while not self.check_collision(piece, pos):
-                    pos["y"] += 1
-                self.truncate(piece, pos)
-                board = self.store(piece, pos)
-                states[(x, i)] = self.get_state_properties_tensor(board)
-            curr_piece = rotate(curr_piece)
-        return states
 
     def get_next_states(self):
         states = {}
@@ -228,19 +195,21 @@ class Tetris:
             board = [[0 for _ in range(self.width)]] + board
         return board
 
-    def step(self, action, render=True, vid=None):
-        x, num_rotations = action
-        self.current_pos = {"x": x, "y": 0}
+    def step(self):
+        x = self.current_pos.get("x")
+        if cv2.waitKey(100) == ord('a') and x > 0:
+            x -= 1
+        elif cv2.waitKey(100) == ord('d') and x < self.width + len(self.piece[0]):
+            x += 1
+        num_rotations = 0
 
+        self.current_pos = {"x": x, "y": 0}
         for _ in range(num_rotations):
             self.piece = rotate(self.piece)
 
         while not self.check_collision(self.piece, self.current_pos):
             self.current_pos["y"] += 1
-            if render:
-                self.render(vid)
-
-        reward = 0
+            self.render()
 
         overflow = self.truncate(self.piece, self.current_pos)
         if overflow:
@@ -250,17 +219,18 @@ class Tetris:
 
         lines_cleared, self.board = self.check_cleared_rows(self.board)
         score = 1 + (lines_cleared ** 2) * self.width
-        reward += 1 + 10 * lines_cleared
         self.score += score
         self.tetrominoes += 1
         self.cleared_lines += lines_cleared
+
+        self.render()
+
         if not self.gameOver:
             self.new_piece()
         if self.gameOver:
             self.score -= 2
-            reward = -10
 
-        return reward, score, self.gameOver
+        return score, self.gameOver
 
     def render(self, video=None):
         if not self.gameOver:
@@ -302,7 +272,7 @@ class Tetris:
             video.write(img)
 
         cv2.imshow("Deep Q-Learning Tetris", img)
-        cv2.waitKey(20)
+        cv2.waitKey(100)
 
 
 def rotate(piece):
@@ -316,3 +286,15 @@ def rotate(piece):
             new_row[j] = piece[(num_rows_orig - 1) - j][i]
         rotated_array.append(new_row)
     return rotated_array
+
+
+if __name__ == '__main__':
+    game = Tetris()
+
+    while True:
+        score, game_over = game.step()
+
+        if game_over:
+            break
+
+    print('Final score: ', score)
