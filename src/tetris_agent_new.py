@@ -8,13 +8,15 @@ import torch.nn as nn
 from tensorboardX import SummaryWriter
 from src.model_new import DQNet, QTrainer
 from src.tetris import Tetris
+from src.tetris_new import Tetris_new
 from src.tools import plot
 from collections import deque
 
 MAX_MEMORY = 100_000
 BATCH_SIZE = 1000
 LR = 0.001
-video = False
+RENDER = False
+PLOT = True
 
 
 class Agent:
@@ -23,13 +25,18 @@ class Agent:
         self.epsilon = 0  # randomness
         self.gamma = 0.9  # discount rate
         self.memory = deque(maxlen=MAX_MEMORY)
-        self.model = DQNet(4, 256, 1)
+        self.model = DQNet(4, 128, 1)
         self.trainer = QTrainer(self.model, lr=LR, gamma=self.gamma)
 
     def get_states(self, game):
         next_steps = game.get_next_states()
         next_actions, next_states = zip(*next_steps.items())
         return next_states
+
+    def get_state(self, game):
+        state = game.get_state_properties(game.board)
+
+        return np.array(state)
 
     def remember(self, state, action, reward, next_state, game_over):
         self.memory.append((state, action, reward, next_state, game_over))  # one tuple
@@ -52,19 +59,51 @@ class Agent:
         random_action = u <= self.epsilon
 
         next_steps = game.get_next_states_tensor()
+        # print(next_steps)
         next_actions, next_states = zip(*next_steps.items())
+        # print(next_states)
+        prediction = np.zeros(len(next_states))
 
-        self.model.eval()
-        with torch.no_grad():
-            predictions = self.model(next_states)[:, 0]
-        self.model.train()
+        # self.model.eval()
+        for i in range(len(next_states)):
+            state = torch.tensor(next_states[i], dtype=torch.float)
+            # print(state)
+            with torch.no_grad():
+                prediction[i] = self.model(state)
+        # self.model.train()
+        # print(prediction)
+        prediction = torch.tensor(prediction, dtype=torch.float)
+        # print(prediction)
+        # print("Random action: ", random_action)
 
         if random_action:
             index = randint(0, len(next_steps) - 1)
         else:
-            index = torch.argmax(predictions).item()
+            index = torch.argmax(prediction).item()
+        # print(index)
 
         return next_actions[index]
+
+    def get_action_new(self, game, state):
+        # self.epsilon = 0.001 + (max(500 - self.n_epochs, 0) * (0.9 - 0.001) / 500)
+        self.epsilon = 80 - self.n_epochs
+        u = randint(0, 100)
+        random_action = u <= self.epsilon
+
+        next_steps = game.get_next_states_tensor()
+        next_actions, next_states = zip(*next_steps.items())
+        # print(next_actions)
+        print("Random action: ", random_action)
+
+        if random_action:
+            index = randint(0, len(next_steps) - 1)
+        else:
+            state = torch.tensor(state, dtype=torch.float)
+            prediction = self.model(state)
+            index = torch.argmax(prediction).item()
+
+        return next_actions[index]
+        # return index
 
 
 def get_args():
@@ -96,41 +135,50 @@ def train(options):
     total_score = 0
     max_score = 0
     agent = Agent()
-    env = Tetris()
+    env = Tetris_new()
     while True:
         # get current state
-        states_old = agent.get_states(env)
-        print(states_old)
+        # states_old = agent.get_states(env)
+        # print(states_old)
+        state_old = agent.get_state(env)
+        # print(state_old)
         # get move
-        final_move = agent.get_action(env)
+        final_move = agent.get_action_new(env, state_old)
+        # print(final_move)
 
         # perform move and get new state
-        reward, score, game_over = env.step(final_move)
-        states_new = agent.get_states(env)
+        reward, score, game_over = env.step(final_move, render=RENDER)
+        state_new = agent.get_state(env)
 
         # train short memory
-        agent.train_batch_memory(states_old, final_move, reward, states_new, game_over)
+        agent.train_batch_memory(state_old, final_move, reward, state_new, game_over)
 
         # remember
-        agent.remember(states_old, final_move, reward, states_new, game_over)
+        agent.remember(state_old, final_move, reward, state_new, game_over)
+
+        # print(reward)
 
         if game_over:
+            # print("Game Over ", reward)
             # train replay memory, plotting
             env.reset()
             agent.n_epochs += 1
             agent.train_replay_memory()
+            # c = b
+
             if score > max_score:
                 max_score = score
-                # agent,mode.save()
+                # agent.model.save()
 
             print('Game', agent.n_epochs, 'Score', score, 'Record', max_score)
 
-            plot_scores.append(score)
-            total_score += score
-            mean_score = total_score / agent.n_epochs
-            plot_average_scores.append(mean_score)
-            if agent.n_epochs % 3 == 0:
-                plot(plot_scores, plot_average_scores)
+            if PLOT:
+                plot_scores.append(score)
+                total_score += score
+                mean_score = total_score / agent.n_epochs
+                plot_average_scores.append(mean_score)
+                if agent.n_epochs % 1 == 0:
+                    plot(plot_scores, plot_average_scores)
 
 
 if __name__ == "__main__":

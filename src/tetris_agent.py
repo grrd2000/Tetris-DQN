@@ -70,7 +70,9 @@ def train(options):
         u = random()
         random_action = u <= epsilon
         next_actions, next_states = zip(*next_steps.items())
+        print("pre-stack", next_states)
         next_states = torch.stack(next_states)
+        print("stacked", next_states)
         model.eval()
         with torch.no_grad():
             predictions = model(next_states)[:, 0]
@@ -78,7 +80,12 @@ def train(options):
         if random_action:
             index = randint(0, len(next_steps) - 1)
         else:
+            # print(predictions)
             index = torch.argmax(predictions).item()
+
+        #print(predictions)
+        #print(index)
+        #c = b
 
         next_state = next_states[index, :]
         action = next_actions[index]

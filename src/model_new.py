@@ -39,26 +39,52 @@ class QTrainer:
         next_state = torch.tensor(next_state, dtype=torch.float)
         reward = torch.tensor(reward, dtype=torch.float)
 
+        print("state", state)
+        print("action", action)
+        print("next_state", next_state)
+        print("reward", reward)
+        print("game_over", game_over)
+
         if len(state.shape) == 1:
             state = torch.unsqueeze(state, 0)
             next_state = torch.unsqueeze(next_state, 0)
             action = torch.unsqueeze(action, 0)
             reward = torch.unsqueeze(reward, 0)
-            game_over = (game_over, )
+            game_over = (game_over,)
 
         # 1: predicted Q values with current state
         pred = self.model(state)
+        print("pred", pred)
 
         # 2: Q_new = r + y * max(next_predicted Q value)
         # pred.clone()
         # preds[argmax(action)] = Q_new
+
         target = pred.clone()
+        # print(reward)
         for idx in range(len(game_over)):
             Q_new = reward[idx]
             if not game_over[idx]:
                 Q_new = reward[idx] + self.gamma * torch.max(self.model(next_state[idx]))
 
-            target[idx][torch.argmax(action).item()] = Q_new
+            # print("idx", idx)
+            # print("len", len(game_over))
+            # print("game_over", game_over)
+            # print("action", action)
+            # print("len (action)", len(action))
+            # print("action[idx]", action[idx])
+            # print("argmax", torch.argmax(action))
+            # print("item", torch.argmax(action).item())
+            # print("target[][] shape", target.shape)
+            # print("target", target)
+            # print("target item", target[torch.argmax(action[idx])])
+            # print("target argmax action", target[torch.argmax(action)])
+            target[idx] = Q_new
+            # print("target item", target[torch.argmax(action[idx])])
+            # print("target argmax action", target[torch.argmax(action)])
+            # target[idx][torch.argmax(action).item()] = Q_new
+            # target[idx][torch.argmax(action[idx]).item()] = Q_new
+
 
         self.optimizer.zero_grad()
         loss = self.criterion(target, pred)
