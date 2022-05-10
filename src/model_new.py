@@ -12,7 +12,7 @@ class DQNet(nn.Module):
         self.linear2 = nn.Linear(hidden_size, output_size)
 
     def forward(self, x):
-        x = F.relu(self.linear1(x))
+        x = F.sigmoid(self.linear1(x))
         x = self.linear2(x)
         return x
 
@@ -39,11 +39,11 @@ class QTrainer:
         next_state = torch.tensor(next_state, dtype=torch.float)
         reward = torch.tensor(reward, dtype=torch.float)
 
-        print("state", state)
-        print("action", action)
-        print("next_state", next_state)
-        print("reward", reward)
-        print("game_over", game_over)
+        # print("state", state)
+        # print("action", action)
+        # print("next_state", next_state)
+        # print("reward", reward)
+        # print("game_over", game_over)
 
         if len(state.shape) == 1:
             state = torch.unsqueeze(state, 0)
@@ -54,6 +54,7 @@ class QTrainer:
 
         # 1: predicted Q values with current state
         pred = self.model(state)
+        print("state", state)
         print("pred", pred)
 
         # 2: Q_new = r + y * max(next_predicted Q value)
@@ -79,12 +80,12 @@ class QTrainer:
             # print("target", target)
             # print("target item", target[torch.argmax(action[idx])])
             # print("target argmax action", target[torch.argmax(action)])
-            target[idx] = Q_new
+            if len(game_over) > 1:
+                target[idx] = Q_new
             # print("target item", target[torch.argmax(action[idx])])
             # print("target argmax action", target[torch.argmax(action)])
             # target[idx][torch.argmax(action).item()] = Q_new
             # target[idx][torch.argmax(action[idx]).item()] = Q_new
-
 
         self.optimizer.zero_grad()
         loss = self.criterion(target, pred)

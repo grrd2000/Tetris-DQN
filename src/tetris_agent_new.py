@@ -25,7 +25,7 @@ class Agent:
         self.epsilon = 0  # randomness
         self.gamma = 0.9  # discount rate
         self.memory = deque(maxlen=MAX_MEMORY)
-        self.model = DQNet(4, 128, 1)
+        self.model = DQNet(6, 256, 1)
         self.trainer = QTrainer(self.model, lr=LR, gamma=self.gamma)
 
     def get_states(self, game):
@@ -35,8 +35,9 @@ class Agent:
 
     def get_state(self, game):
         state = game.get_state_properties(game.board)
+        state = np.array(state)
 
-        return np.array(state)
+        return state
 
     def remember(self, state, action, reward, next_state, game_over):
         self.memory.append((state, action, reward, next_state, game_over))  # one tuple
@@ -87,7 +88,7 @@ class Agent:
     def get_action_new(self, game, state):
         # self.epsilon = 0.001 + (max(500 - self.n_epochs, 0) * (0.9 - 0.001) / 500)
         self.epsilon = 80 - self.n_epochs
-        u = randint(0, 100)
+        u = randint(0, 200)
         random_action = u <= self.epsilon
 
         next_steps = game.get_next_states_tensor()
@@ -159,7 +160,7 @@ def train(options):
         # print(reward)
 
         if game_over:
-            # print("Game Over ", reward)
+            print("Game Over ", final_move)
             # train replay memory, plotting
             env.reset()
             agent.n_epochs += 1

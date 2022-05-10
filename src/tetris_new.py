@@ -55,6 +55,7 @@ class Tetris_new:
              ]
 
     def __init__(self, height=24, width=10, block_size=20, maxScore=10000):
+        self.current_move = None
         self.pieces_counter = None
         self.current_pos = None
         self.gameOver = None
@@ -72,6 +73,7 @@ class Tetris_new:
         self.extra_board = np.ones((self.height * self.block_size, self.width * int(self.block_size / 2), 3),
                                    dtype=np.uint8) * np.array([204, 204, 255], dtype=np.uint8)
         self.text_color = (0, 0, 255)
+        self.renderDelay = 1
         self.reset()
 
     def reset(self):
@@ -85,6 +87,7 @@ class Tetris_new:
         self.ind = self.bag.pop()
         self.piece = [row[:] for row in self.pieces[self.ind]]
         self.current_pos = {"x": self.width // 2 - len(self.piece[0]) // 2, "y": 0}
+        self.current_move = [self.current_pos["x"], 0]
         self.gameOver = False
         return self.get_state_properties_tensor(self.board)
 
@@ -100,7 +103,7 @@ class Tetris_new:
         lines_cleared, board = self.check_cleared_rows(board)
         holes = self.get_holes(board)
         bumpiness, height = self.get_bumpiness_and_height(board)
-        new_state = [lines_cleared, holes, bumpiness, height]
+        new_state = torch.FloatTensor([self.current_move[0], self.current_move[1], lines_cleared, holes, bumpiness, height])
 
         return new_state
 
@@ -169,7 +172,7 @@ class Tetris_new:
                     pos["y"] += 1
                 self.truncate(piece, pos)
                 board = self.store(piece, pos)
-                states[(x, i)] = self.get_state_properties(board)
+                states[self.moves.index((x, i))] = self.get_state_properties(board)
             curr_piece = rotate(curr_piece)
         return states
 
@@ -246,6 +249,7 @@ class Tetris_new:
     def step(self, action, render=True, vid=None):
         x, num_rotations = self.moves[action]
         self.current_pos = {"x": x, "y": 0}
+        self.current_move = [x, num_rotations]
 
         for _ in range(num_rotations):
             self.piece = rotate(self.piece)
@@ -318,7 +322,7 @@ class Tetris_new:
             video.write(img)
 
         cv2.imshow("Deep Q-Learning Tetris", img)
-        cv2.waitKey(1)
+        cv2.waitKey(self.renderDelay)
 
 
 def rotate(piece):
