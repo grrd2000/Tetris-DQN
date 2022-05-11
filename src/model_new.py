@@ -68,7 +68,7 @@ class QTrainer:
                 target[idx] = Q_new
 '''
 
-        if len(replay_memory) >= 100_000 / 10:
+        if len(replay_memory) <= 100_000 / 10:
             batch = sample(replay_memory, min(len(replay_memory), 1000))
             state_batch, reward_batch, next_state_batch, done_batch = zip(*batch)
             state_batch = torch.stack(tuple(state for state in state_batch))

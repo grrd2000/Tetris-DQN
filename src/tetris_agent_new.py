@@ -27,9 +27,9 @@ class Agent:
     def __init__(self):
         self.n_epochs = 0
         self.epsilon = 0  # randomness
-        self.gamma = 0.9  # discount rate
+        self.gamma = 0.95  # discount rate
         self.memory = deque(maxlen=MAX_MEMORY)
-        self.model = DQNet(4, 256, 1)
+        self.model = DQNet(4, 128, 1)
         self.trainer = QTrainer(self.model, lr=LR, gamma=self.gamma)
 
     def get_states(self, game):
@@ -41,7 +41,7 @@ class Agent:
 
         return state
 
-    def remember(self, state, action, reward, next_state, game_over):
+    def remember(self, state, reward, next_state, game_over):
         self.memory.append([state, reward, next_state, game_over])  # one tuple
 
     def train_replay_memory(self):
@@ -53,7 +53,7 @@ class Agent:
         states, rewards, next_states, game_overs = zip(*mini_sample)
         self.trainer.train_step(mini_sample)
 
-    def train_batch_memory(self, state, action, reward, next_state, game_over):
+    def train_batch_memory(self, state, reward, next_state, game_over):
         self.trainer.train_step(self.memory)
 
     def get_action(self, game):
@@ -87,9 +87,9 @@ class Agent:
 
         return index
 
-    def get_action_new(self, game, state):
+    def get_action_new(self, state):
         # self.epsilon = 0.001 + (max(500 - self.n_epochs, 0) * (0.9 - 0.001) / 500)
-        self.epsilon = 80 - self.n_epochs
+        self.epsilon = 90 - self.n_epochs
         u = randint(0, 200)
         random_action = u <= self.epsilon
 
@@ -108,15 +108,12 @@ class Agent:
         if random_action:
             index = randint(0, len(state) - 1)
         else:
-            # state = torch.tensor(state, dtype=torch.float)
-            # prediction = self.model(state)
             index = torch.argmax(predictions).item()
 
         next_state = next_states[index, :]
         action = next_actions[index]
 
         return next_state, action
-        # return index
 
 
 def get_args():
@@ -149,36 +146,27 @@ def train(options):
     max_score = 0
     agent = Agent()
     env = Tetris_new()
+    state = env.reset()
     while True:
         # get current state
         state_old = agent.get_states(env)
-        # print("next states", next_states, len(next_states))
-        # print("next actions", next_actions, len(next_actions))
 
         # get move
-        final_move = agent.get_action_new(env, state_old)
+        final_move = agent.get_action_new(state_old)
         next_state, action = final_move
-        # print(action)
+
         # perform move and get new state
         reward, score, game_over = env.step(action, render=RENDER)
-        state_new = agent.get_state(env)
 
-        # train short memory
-        agent.remember(state_old, final_move, reward, state_new, game_over)
-        agent.train_batch_memory(state_old, final_move, reward, state_new, game_over)
-
-        # remember
-
-
-        # print(reward)
+        agent.remember(state, reward, next_state, game_over)
+        agent.train_batch_memory(state, reward, next_state, game_over)
 
         if game_over:
             print("Game Over ", final_move)
             # train replay memory, plotting
-            env.reset()
+            state = env.reset()
             agent.n_epochs += 1
-            agent.train_replay_memory()
-            # c = b
+            # agent.train_replay_memory()
 
             if score > max_score:
                 max_score = score
@@ -193,6 +181,8 @@ def train(options):
                 plot_average_scores.append(mean_score)
                 if agent.n_epochs % 1 == 0:
                     plot(plot_scores, plot_average_scores)
+        else:
+            state = next_state
 
 
 if __name__ == "__main__":

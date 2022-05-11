@@ -104,12 +104,11 @@ def train(options):
             continue
         epoch += 1
         batch = sample(replay_memory, min(len(replay_memory), options.batch_size))
-        print(batch)
         state_batch, reward_batch, next_state_batch, done_batch = zip(*batch)
         state_batch = torch.stack(tuple(state for state in state_batch))
         reward_batch = torch.from_numpy(np.array(reward_batch, dtype=np.float32)[:, None])
         next_state_batch = torch.stack(tuple(state for state in next_state_batch))
-
+        print(next_state_batch)
         q_values = model(state_batch)
         model.eval()
         with torch.no_grad():
