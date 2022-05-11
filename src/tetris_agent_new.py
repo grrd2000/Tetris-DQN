@@ -14,24 +14,26 @@ from collections import deque
 
 MAX_MEMORY = 100_000
 BATCH_SIZE = 1000
+GAMMA = 0.9
 LR = 0.001
 RENDER = False
 PLOT = True
 
 
 class Agent:
+    batch_size = BATCH_SIZE
+    gamma = GAMMA
+
     def __init__(self):
         self.n_epochs = 0
         self.epsilon = 0  # randomness
         self.gamma = 0.9  # discount rate
         self.memory = deque(maxlen=MAX_MEMORY)
-        self.model = DQNet(6, 256, 1)
+        self.model = DQNet(4, 256, 1)
         self.trainer = QTrainer(self.model, lr=LR, gamma=self.gamma)
 
     def get_states(self, game):
-        next_steps = game.get_next_states()
-        next_actions, next_states = zip(*next_steps.items())
-        return next_states
+        return game.get_next_states_tensor()
 
     def get_state(self, game):
         state = game.get_state_properties(game.board)
@@ -40,7 +42,7 @@ class Agent:
         return state
 
     def remember(self, state, action, reward, next_state, game_over):
-        self.memory.append((state, action, reward, next_state, game_over))  # one tuple
+        self.memory.append([state, reward, next_state, game_over])  # one tuple
 
     def train_replay_memory(self):
         if len(self.memory) > BATCH_SIZE:
@@ -48,11 +50,11 @@ class Agent:
         else:
             mini_sample = self.memory
 
-        states, actions, rewards, next_states, game_overs = zip(*mini_sample)
-        self.trainer.train_step(states, actions, rewards, next_states, game_overs)
+        states, rewards, next_states, game_overs = zip(*mini_sample)
+        self.trainer.train_step(mini_sample)
 
     def train_batch_memory(self, state, action, reward, next_state, game_over):
-        self.trainer.train_step(state, action, reward, next_state, game_over)
+        self.trainer.train_step(self.memory)
 
     def get_action(self, game):
         self.epsilon = 0.001 + (max(500 - self.n_epochs, 0) * (0.9 - 0.001) / 500)
@@ -83,7 +85,7 @@ class Agent:
             index = torch.argmax(prediction).item()
         # print(index)
 
-        return next_actions[index]
+        return index
 
     def get_action_new(self, game, state):
         # self.epsilon = 0.001 + (max(500 - self.n_epochs, 0) * (0.9 - 0.001) / 500)
@@ -91,19 +93,29 @@ class Agent:
         u = randint(0, 200)
         random_action = u <= self.epsilon
 
-        next_steps = game.get_next_states_tensor()
-        next_actions, next_states = zip(*next_steps.items())
+        next_actions, next_states = zip(*state.items())
         # print(next_actions)
-        print("Random action: ", random_action)
+        # print("Random action: ", random_action)
+
+        next_states = torch.stack(next_states)
+        # print(next_states, len(next_states))
+        self.model.eval()
+        with torch.no_grad():
+            predictions = self.model(next_states)[:, 0]
+        self.model.train()
+        # print(predictions)
 
         if random_action:
-            index = randint(0, len(next_steps) - 1)
+            index = randint(0, len(state) - 1)
         else:
-            state = torch.tensor(state, dtype=torch.float)
-            prediction = self.model(state)
-            index = torch.argmax(prediction).item()
+            # state = torch.tensor(state, dtype=torch.float)
+            # prediction = self.model(state)
+            index = torch.argmax(predictions).item()
 
-        return next_actions[index]
+        next_state = next_states[index, :]
+        action = next_actions[index]
+
+        return next_state, action
         # return index
 
 
@@ -139,23 +151,24 @@ def train(options):
     env = Tetris_new()
     while True:
         # get current state
-        # states_old = agent.get_states(env)
-        # print(states_old)
-        state_old = agent.get_state(env)
-        # print(state_old)
+        state_old = agent.get_states(env)
+        # print("next states", next_states, len(next_states))
+        # print("next actions", next_actions, len(next_actions))
+
         # get move
         final_move = agent.get_action_new(env, state_old)
-        # print(final_move)
-
+        next_state, action = final_move
+        # print(action)
         # perform move and get new state
-        reward, score, game_over = env.step(final_move, render=RENDER)
+        reward, score, game_over = env.step(action, render=RENDER)
         state_new = agent.get_state(env)
 
         # train short memory
+        agent.remember(state_old, final_move, reward, state_new, game_over)
         agent.train_batch_memory(state_old, final_move, reward, state_new, game_over)
 
         # remember
-        agent.remember(state_old, final_move, reward, state_new, game_over)
+
 
         # print(reward)
 

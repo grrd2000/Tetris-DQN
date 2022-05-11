@@ -148,7 +148,7 @@ class Tetris_new:
                     pos["y"] += 1
                 self.truncate(piece, pos)
                 board = self.store(piece, pos)
-                states[self.moves.index((x, i))] = self.get_state_properties_tensor(board)
+                states[(x, i)] = self.get_state_properties_tensor(board)
             curr_piece = rotate(curr_piece)
         return states
 
@@ -247,7 +247,7 @@ class Tetris_new:
         return board
 
     def step(self, action, render=True, vid=None):
-        x, num_rotations = self.moves[action]
+        x, num_rotations = action
         self.current_pos = {"x": x, "y": 0}
         self.current_move = [x, num_rotations]
 

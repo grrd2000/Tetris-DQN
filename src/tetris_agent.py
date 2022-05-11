@@ -12,6 +12,8 @@ from src.tools import plot
 from collections import deque
 
 video = False
+scores = False
+plots = True
 
 
 def get_args():
@@ -70,9 +72,10 @@ def train(options):
         u = random()
         random_action = u <= epsilon
         next_actions, next_states = zip(*next_steps.items())
-        print("pre-stack", next_states)
+        # print("next states", next_states, len(next_states))
+        # print("next actions", next_actions, len(next_actions))
         next_states = torch.stack(next_states)
-        print("stacked", next_states)
+        # print("next states", next_states, len(next_states))
         model.eval()
         with torch.no_grad():
             predictions = model(next_states)[:, 0]
@@ -82,10 +85,6 @@ def train(options):
         else:
             # print(predictions)
             index = torch.argmax(predictions).item()
-
-        #print(predictions)
-        #print(index)
-        #c = b
 
         next_state = next_states[index, :]
         action = next_actions[index]
@@ -105,6 +104,7 @@ def train(options):
             continue
         epoch += 1
         batch = sample(replay_memory, min(len(replay_memory), options.batch_size))
+        print(batch)
         state_batch, reward_batch, next_state_batch, done_batch = zip(*batch)
         state_batch = torch.stack(tuple(state for state in state_batch))
         reward_batch = torch.from_numpy(np.array(reward_batch, dtype=np.float32)[:, None])
@@ -125,19 +125,20 @@ def train(options):
         loss.backward()
         optimizer.step()
 
-        print("Epoch: {}/{},\t Tetromino: {},\t Action: {},\t Score: {},\t Tetrominoes {},\t Cleared lines: {}".format(
-            epoch,
-            options.num_epochs,
-            env.piece,
-            action,
-            final_score,
-            final_tetrominoes,
-            final_cleared_lines))
-        writer.add_scalar('Train/Score', final_score, epoch - 1)
-        writer.add_scalar('Train/Tetrominoes', final_tetrominoes, epoch - 1)
-        writer.add_scalar('Train/Cleared lines', final_cleared_lines, epoch - 1)
+        if scores:
+            print("Epoch: {}/{},\t Tetromino: {},\t Action: {},\t Score: {},\t Tetrominoes {},\t Cleared lines: {}".format(
+                epoch,
+                options.num_epochs,
+                env.piece,
+                action,
+                final_score,
+                final_tetrominoes,
+                final_cleared_lines))
+            writer.add_scalar('Train/Score', final_score, epoch - 1)
+            writer.add_scalar('Train/Tetrominoes', final_tetrominoes, epoch - 1)
+            writer.add_scalar('Train/Cleared lines', final_cleared_lines, epoch - 1)
 
-        if options.plot_scores:
+        if options.plot_scores and plots:
             plot_scores.append(final_score)
             total_score += final_score
             mean_score = total_score / epoch
