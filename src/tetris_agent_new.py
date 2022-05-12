@@ -1,13 +1,8 @@
 import argparse
-import os
-import shutil
 from random import random, randint, sample
 import numpy as np
 import torch
-import torch.nn as nn
-from tensorboardX import SummaryWriter
 from src.model_new import DQNet, QTrainer
-from src.tetris import Tetris
 from src.tetris_new import Tetris_new
 from src.tools import plot
 from collections import deque
@@ -27,7 +22,7 @@ class Agent:
     def __init__(self):
         self.n_epochs = 0
         self.epsilon = 0  # randomness
-        self.gamma = 0.95  # discount rate
+        self.gamma = 0.9  # discount rate
         self.memory = deque(maxlen=MAX_MEMORY)
         self.model = DQNet(4, 128, 1)
         self.trainer = QTrainer(self.model, lr=LR, gamma=self.gamma)
@@ -35,29 +30,22 @@ class Agent:
     def get_states(self, game):
         return game.get_next_states_tensor()
 
-    def get_state(self, game):
-        state = game.get_state_properties(game.board)
-        state = np.array(state)
-
-        return state
-
     def remember(self, state, reward, next_state, game_over):
-        self.memory.append([state, reward, next_state, game_over])  # one tuple
+        self.memory.append([state, reward, next_state, game_over])
 
     def train_replay_memory(self):
         if len(self.memory) > BATCH_SIZE:
-            mini_sample = sample(self.memory, BATCH_SIZE)  # list of tuples
+            mini_sample = sample(self.memory, BATCH_SIZE)
         else:
             mini_sample = self.memory
 
-        states, rewards, next_states, game_overs = zip(*mini_sample)
         self.trainer.train_step(mini_sample)
 
-    def train_batch_memory(self, state, reward, next_state, game_over):
+    def train_batch_memory(self):
         self.trainer.train_step(self.memory)
 
     def get_action(self, game):
-        self.epsilon = 0.001 + (max(500 - self.n_epochs, 0) * (0.9 - 0.001) / 500)
+        self.epsilon = 0.001 + (max(450 - self.n_epochs, 0) * (0.925 - 0.001) / 450)
         u = random()
         random_action = u <= self.epsilon
 
@@ -88,14 +76,14 @@ class Agent:
         return index
 
     def get_action_new(self, state):
-        # self.epsilon = 0.001 + (max(500 - self.n_epochs, 0) * (0.9 - 0.001) / 500)
-        self.epsilon = 90 - self.n_epochs
-        u = randint(0, 200)
+        self.epsilon = 0.001 + (max(500 - self.n_epochs, 0) * (0.9 - 0.001) / 500)
+        # self.epsilon = 90 - self.n_epochs
+        u = random()
         random_action = u <= self.epsilon
+        # print("Epsilon: ", self.epsilon)
+        print("Random action: ", random_action)
 
         next_actions, next_states = zip(*state.items())
-        # print(next_actions)
-        # print("Random action: ", random_action)
 
         next_states = torch.stack(next_states)
         # print(next_states, len(next_states))
@@ -103,7 +91,6 @@ class Agent:
         with torch.no_grad():
             predictions = self.model(next_states)[:, 0]
         self.model.train()
-        # print(predictions)
 
         if random_action:
             index = randint(0, len(state) - 1)
@@ -159,7 +146,7 @@ def train(options):
         reward, score, game_over = env.step(action, render=RENDER)
 
         agent.remember(state, reward, next_state, game_over)
-        agent.train_batch_memory(state, reward, next_state, game_over)
+        agent.train_batch_memory()
 
         if game_over:
             print("Game Over ", final_move)

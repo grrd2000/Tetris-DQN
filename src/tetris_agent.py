@@ -108,7 +108,6 @@ def train(options):
         state_batch = torch.stack(tuple(state for state in state_batch))
         reward_batch = torch.from_numpy(np.array(reward_batch, dtype=np.float32)[:, None])
         next_state_batch = torch.stack(tuple(state for state in next_state_batch))
-        print(next_state_batch)
         q_values = model(state_batch)
         model.eval()
         with torch.no_grad():
@@ -142,7 +141,7 @@ def train(options):
             total_score += final_score
             mean_score = total_score / epoch
             plot_mean_scores.append(mean_score)
-            if epoch % 3 == 0:
+            if epoch % 1 == 0:
                 plot(plot_scores, plot_mean_scores)
 
         if epoch > 0 and epoch % options.save_interval == 0:

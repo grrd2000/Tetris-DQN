@@ -267,10 +267,10 @@ class Tetris_new:
 
         lines_cleared, self.board = self.check_cleared_rows(self.board)
         # score = 1 + (lines_cleared ** 2) * self.width
-        score = np.count_nonzero(self.piece) + (lines_cleared ** 2) * self.width
-        # reward += np.count_nonzero(self.piece) + 20 * lines_cleared
+        score = 1 + (lines_cleared ** 2) * self.width
+        reward = np.count_nonzero(self.piece) + 20 * lines_cleared
         # reward = self.pieces_counter + 10 * lines_cleared
-        reward = 1 + (lines_cleared ** 2) * self.width
+        # reward = 1 + (lines_cleared ** 2) * self.width
         self.score += score
         self.tetrominoes += 1
         self.cleared_lines += lines_cleared
@@ -278,7 +278,7 @@ class Tetris_new:
             self.new_piece()
         if self.gameOver:
             self.score -= 2
-            reward -= 2
+            reward -= 10
 
         return reward, self.score, self.gameOver
 
