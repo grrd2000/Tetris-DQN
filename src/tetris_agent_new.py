@@ -24,7 +24,7 @@ class Agent:
         self.epsilon = 0  # randomness
         self.gamma = 0.9  # discount rate
         self.memory = deque(maxlen=MAX_MEMORY)
-        self.model = DQNet(4, 128, 1)
+        self.model = DQNet(4, 256, 1)
         self.trainer = QTrainer(self.model, lr=LR, gamma=self.gamma)
 
     def get_states(self, game):
@@ -120,7 +120,8 @@ def get_args():
     parser.add_argument("--replay_memory_size", type=int, default=700, help="Number of epochs between testing phases")
     parser.add_argument("--plot_scores", type=bool, default=True)
     parser.add_argument("--log_path", type=str, default="output/tensorboard")
-    parser.add_argument("--saved_path", type=str, default="output/trained_models")
+    parser.add_argument("--saved_path", type=str,
+                        default="C:/Users/gerar/Documents/Projects/Programming/Tetris_DQN/output/trained_models")
 
     args = parser.parse_args()
     return args
@@ -157,7 +158,9 @@ def train(options):
 
             if score > max_score:
                 max_score = score
-                # agent.model.save()
+                # print(agent.model)
+                print("~BEST SCORE!~ Score: {}, Epoch: {}".format(max_score, agent.n_epochs))
+                torch.save(agent.model, "{}/tetris_best".format(options.saved_path, agent.n_epochs))
 
             print('Game', agent.n_epochs, 'Score', score, 'Record', max_score)
 

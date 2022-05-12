@@ -146,7 +146,8 @@ def train(options):
 
         if epoch > 0 and epoch % options.save_interval == 0:
             torch.save(model, "{}/tetris_{}".format(options.saved_path, epoch))
-        if best_score < final_score and epoch >= 500:
+        if best_score < final_score and epoch >= 10:
+            print(model)
             best_score = final_score
             print("~BEST SCORE!~ Score: {}, Epoch: {}".format(best_score, epoch))
             torch.save(model, "{}/tetris_best_{}".format(options.saved_path, epoch))
