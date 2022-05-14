@@ -1,19 +1,106 @@
 import argparse
-import os
-import shutil
 from random import random, randint, sample
 import numpy as np
 import torch
-import torch.nn as nn
-from tensorboardX import SummaryWriter
-from src.model import DeepQNetwork
+from src.model import DQNet, QTrainer
 from src.tetris import Tetris
 from src.tools import plot
 from collections import deque
 
-video = False
-scores = False
-plots = True
+MAX_MEMORY = 100_000
+BATCH_SIZE = 1000
+GAMMA = 0.9
+LR = 0.001
+RENDER = False
+PLOT = True
+
+
+class Agent:
+    batch_size = BATCH_SIZE
+    gamma = GAMMA
+
+    def __init__(self):
+        self.n_epochs = 0
+        self.epsilon = 0  # randomness
+        self.gamma = 0.95  # discount rate
+        self.memory = deque(maxlen=MAX_MEMORY)
+        self.model = DQNet(4, 128, 1)
+        self.trainer = QTrainer(self.model, lr=LR, gamma=self.gamma)
+
+    def get_states(self, game):
+        return game.get_next_states_tensor()
+
+    def remember(self, state, reward, next_state, game_over):
+        self.memory.append([state, reward, next_state, game_over])
+
+    def train_replay_memory(self):
+        if len(self.memory) > BATCH_SIZE:
+            mini_sample = sample(self.memory, BATCH_SIZE)
+        else:
+            mini_sample = self.memory
+
+        self.trainer.train_step(mini_sample)
+
+    def train_batch_memory(self):
+        self.trainer.train_step(self.memory)
+
+    def get_action(self, game):
+        self.epsilon = 0.001 + (max(450 - self.n_epochs, 0) * (0.925 - 0.001) / 450)
+        u = random()
+        random_action = u <= self.epsilon
+
+        next_steps = game.get_next_states_tensor()
+        # print(next_steps)
+        next_actions, next_states = zip(*next_steps.items())
+        # print(next_states)
+        prediction = np.zeros(len(next_states))
+
+        # self.model.eval()
+        for i in range(len(next_states)):
+            state = torch.tensor(next_states[i], dtype=torch.float)
+            # print(state)
+            with torch.no_grad():
+                prediction[i] = self.model(state)
+        # self.model.train()
+        # print(prediction)
+        prediction = torch.tensor(prediction, dtype=torch.float)
+        # print(prediction)
+        # print("Random action: ", random_action)
+
+        if random_action:
+            index = randint(0, len(next_steps) - 1)
+        else:
+            index = torch.argmax(prediction).item()
+        # print(index)
+
+        return index
+
+    def get_action_new(self, state):
+        self.epsilon = 0.001 + (max(500 - self.n_epochs, 0) * (0.95 - 0.001) / 500)
+        # self.epsilon = 90 - self.n_epochs
+        u = random()
+        random_action = u <= self.epsilon
+        # print("Epsilon: ", self.epsilon)
+        print("Random action: ", random_action)
+
+        next_actions, next_states = zip(*state.items())
+
+        next_states = torch.stack(next_states)
+        # print(next_states, len(next_states))
+        self.model.eval()
+        with torch.no_grad():
+            predictions = self.model(next_states)[:, 0]
+        self.model.train()
+
+        if random_action:
+            index = randint(0, len(state) - 1)
+        else:
+            index = torch.argmax(predictions).item()
+
+        next_state = next_states[index, :]
+        action = next_actions[index]
+
+        return next_state, action
 
 
 def get_args():
@@ -33,127 +120,53 @@ def get_args():
     parser.add_argument("--replay_memory_size", type=int, default=700, help="Number of epochs between testing phases")
     parser.add_argument("--plot_scores", type=bool, default=True)
     parser.add_argument("--log_path", type=str, default="output/tensorboard")
-    parser.add_argument("--saved_path", type=str, default="output/trained_models")
+    parser.add_argument("--saved_path", type=str,
+                        default="C:/Users/gerar/Documents/Projects/Programming/Tetris_DQN/output/trained_models")
 
     args = parser.parse_args()
     return args
 
 
 def train(options):
-    '''if torch.cuda.is_available():
-        torch.cuda.manual_seed(123)
-    else:
-        torch.manual_seed(123)'''
-    torch.manual_seed(777)
-    if os.path.isdir(options.log_path):
-        shutil.rmtree(options.log_path)
-    os.makedirs(options.log_path)
-    writer = SummaryWriter(options.log_path)
-    env = Tetris(width=options.width, height=options.height,
-                 block_size=options.block_size, maxScore=options.max_epoch_score)
-
-    model = DeepQNetwork()
-    optimizer = torch.optim.Adam(model.parameters(), lr=options.lr)
-    criterion = nn.MSELoss()
-
-    state = env.reset()
-
-    replay_memory = deque(maxlen=options.replay_memory_size)
-    epoch = 0
-    best_score = 0
-    total_score = 0
     plot_scores = []
-    plot_mean_scores = []
-    while epoch < options.num_epochs:
-        next_steps = env.get_next_states_tensor()
-        epsilon = options.final_epsilon + (max(options.num_decay_epochs - epoch, 0) * (
-                options.initial_epsilon - options.final_epsilon) / options.num_decay_epochs)
-        # print(epsilon)
-        u = random()
-        random_action = u <= epsilon
-        next_actions, next_states = zip(*next_steps.items())
-        # print("next states", next_states, len(next_states))
-        # print("next actions", next_actions, len(next_actions))
-        next_states = torch.stack(next_states)
-        # print("next states", next_states, len(next_states))
-        model.eval()
-        with torch.no_grad():
-            predictions = model(next_states)[:, 0]
-        model.train()
-        if random_action:
-            index = randint(0, len(next_steps) - 1)
-        else:
-            # print(predictions)
-            index = torch.argmax(predictions).item()
+    plot_average_scores = []
+    total_score = 0
+    max_score = 0
+    agent = Agent()
+    env = Tetris()
+    state = env.reset()
+    while True:
+        state_old = agent.get_states(env)
 
-        next_state = next_states[index, :]
-        action = next_actions[index]
+        final_move = agent.get_action_new(state_old)
+        next_state, action = final_move
 
-        reward, score, done = env.step(action, render=video)
+        reward, score, game_over = env.step(action, render=RENDER)
 
-        replay_memory.append([state, reward, next_state, done])
-        if done:
-            final_score = env.score
-            final_tetrominoes = env.tetrominoes
-            final_cleared_lines = env.cleared_lines
+        agent.remember(state, reward, next_state, game_over)
+        agent.train_batch_memory()
+
+        if game_over:
+            print("Game Over ", final_move)
             state = env.reset()
+            agent.n_epochs += 1
+
+            if score > max_score:
+                max_score = score
+                print("~BEST SCORE!~ Score: {}, Epoch: {}".format(max_score, agent.n_epochs))
+                torch.save(agent.model, "{}/tetris_best_{}".format(options.saved_path, agent.n_epochs))
+
+            print('Game', agent.n_epochs, 'Score', score, 'Record', max_score)
+
+            if PLOT:
+                plot_scores.append(score)
+                total_score += score
+                mean_score = total_score / agent.n_epochs
+                plot_average_scores.append(mean_score)
+                if agent.n_epochs % 1 == 0:
+                    plot(plot_scores, plot_average_scores)
         else:
             state = next_state
-            continue
-        if len(replay_memory) < options.replay_memory_size / 10:
-            continue
-        epoch += 1
-        batch = sample(replay_memory, min(len(replay_memory), options.batch_size))
-        state_batch, reward_batch, next_state_batch, done_batch = zip(*batch)
-        state_batch = torch.stack(tuple(state for state in state_batch))
-        reward_batch = torch.from_numpy(np.array(reward_batch, dtype=np.float32)[:, None])
-        next_state_batch = torch.stack(tuple(state for state in next_state_batch))
-        q_values = model(state_batch)
-        model.eval()
-        with torch.no_grad():
-            next_prediction_batch = model(next_state_batch)
-        model.train()
-
-        y_batch = torch.cat(
-            tuple(reward if done else reward + options.gamma * prediction for reward, done, prediction in
-                  zip(reward_batch, done_batch, next_prediction_batch)))[:, None]
-
-        optimizer.zero_grad()
-        loss = criterion(q_values, y_batch)
-        loss.backward()
-        optimizer.step()
-
-        if scores:
-            print("Epoch: {}/{},\t Tetromino: {},\t Action: {},\t Score: {},\t Tetrominoes {},\t Cleared lines: {}".format(
-                epoch,
-                options.num_epochs,
-                env.piece,
-                action,
-                final_score,
-                final_tetrominoes,
-                final_cleared_lines))
-            writer.add_scalar('Train/Score', final_score, epoch - 1)
-            writer.add_scalar('Train/Tetrominoes', final_tetrominoes, epoch - 1)
-            writer.add_scalar('Train/Cleared lines', final_cleared_lines, epoch - 1)
-
-        if options.plot_scores and plots:
-            plot_scores.append(final_score)
-            total_score += final_score
-            mean_score = total_score / epoch
-            plot_mean_scores.append(mean_score)
-            if epoch % 1 == 0:
-                plot(plot_scores, plot_mean_scores)
-
-        if epoch > 0 and epoch % options.save_interval == 0:
-            torch.save(model, "{}/tetris_{}".format(options.saved_path, epoch))
-        if best_score < final_score and epoch >= 10:
-            print(model)
-            best_score = final_score
-            print("~BEST SCORE!~ Score: {}, Epoch: {}".format(best_score, epoch))
-            torch.save(model, "{}/tetris_best_{}".format(options.saved_path, epoch))
-            torch.save(model, "{}/tetris_best".format(options.saved_path))
-
-    torch.save(model, "{}/tetris".format(options.saved_path))
 
 
 if __name__ == "__main__":

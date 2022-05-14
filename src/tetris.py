@@ -42,7 +42,21 @@ class Tetris:
          [7, 7, 7]]
     ]
 
-    def __init__(self, height=24, width=10, block_size=20, maxScore=1000):
+    moves = [(0, 0), (0, 1), (0, 2), (0, 3),
+             (1, 0), (1, 1), (1, 2), (1, 3),
+             (2, 0), (2, 1), (2, 2), (2, 3),
+             (3, 0), (3, 1), (3, 2), (3, 3),
+             (4, 0), (4, 1), (4, 2), (4, 3),
+             (5, 0), (5, 1), (5, 2), (5, 3),
+             (6, 0), (6, 1), (6, 2), (6, 3),
+             (7, 0), (7, 1), (7, 2), (7, 3),
+             (8, 0), (8, 1), (8, 2), (8, 3),
+             (9, 0), (9, 1), (9, 2), (9, 3),
+             ]
+
+    def __init__(self, height=24, width=10, block_size=20, maxScore=10000):
+        self.current_move = None
+        self.pieces_counter = None
         self.current_pos = None
         self.gameOver = None
         self.piece = None
@@ -59,6 +73,7 @@ class Tetris:
         self.extra_board = np.ones((self.height * self.block_size, self.width * int(self.block_size / 2), 3),
                                    dtype=np.uint8) * np.array([204, 204, 255], dtype=np.uint8)
         self.text_color = (0, 0, 255)
+        self.renderDelay = 1
         self.reset()
 
     def reset(self):
@@ -66,11 +81,13 @@ class Tetris:
         self.score = 0
         self.tetrominoes = 0
         self.cleared_lines = 0
+        self.pieces_counter = 0
         self.bag = list(range(len(self.pieces)))
         random.shuffle(self.bag)
         self.ind = self.bag.pop()
         self.piece = [row[:] for row in self.pieces[self.ind]]
         self.current_pos = {"x": self.width // 2 - len(self.piece[0]) // 2, "y": 0}
+        self.current_move = [self.current_pos["x"], 0]
         self.gameOver = False
         return self.get_state_properties_tensor(self.board)
 
@@ -86,7 +103,7 @@ class Tetris:
         lines_cleared, board = self.check_cleared_rows(board)
         holes = self.get_holes(board)
         bumpiness, height = self.get_bumpiness_and_height(board)
-        new_state = [lines_cleared, holes, bumpiness, height]
+        new_state = torch.FloatTensor([self.current_move[0], self.current_move[1], lines_cleared, holes, bumpiness, height])
 
         return new_state
 
@@ -155,7 +172,7 @@ class Tetris:
                     pos["y"] += 1
                 self.truncate(piece, pos)
                 board = self.store(piece, pos)
-                states[(x, i)] = self.get_state_properties(board)
+                states[self.moves.index((x, i))] = self.get_state_properties(board)
             curr_piece = rotate(curr_piece)
         return states
 
@@ -167,6 +184,7 @@ class Tetris:
         return board
 
     def new_piece(self):
+        self.pieces_counter += 1
         if not len(self.bag):
             self.bag = list(range(len(self.pieces)))
             random.shuffle(self.bag)
@@ -231,6 +249,7 @@ class Tetris:
     def step(self, action, render=True, vid=None):
         x, num_rotations = action
         self.current_pos = {"x": x, "y": 0}
+        self.current_move = [x, num_rotations]
 
         for _ in range(num_rotations):
             self.piece = rotate(self.piece)
@@ -240,7 +259,41 @@ class Tetris:
             if render:
                 self.render(vid)
 
-        reward = 0
+        overflow = self.truncate(self.piece, self.current_pos)
+        if overflow:
+            self.gameOver = True
+
+        self.board = self.store(self.piece, self.current_pos)
+
+        lines_cleared, self.board = self.check_cleared_rows(self.board)
+        # score = 1 + (lines_cleared ** 2) * self.width
+        score = 1 + (lines_cleared ** 2) * self.width
+        reward = np.count_nonzero(self.piece) + 20 * lines_cleared
+        # reward = self.pieces_counter + 10 * lines_cleared
+        # reward = 1 + (lines_cleared ** 2) * self.width
+        self.score += score
+        self.tetrominoes += 1
+        self.cleared_lines += lines_cleared
+        if not self.gameOver:
+            self.new_piece()
+        if self.gameOver:
+            self.score -= 2
+            reward -= 10
+
+        return reward, self.score, self.gameOver
+
+    def step_for_tests(self, action, render=True, vid=None):
+        x, num_rotations = action
+        self.current_pos = {"x": x, "y": 0}
+        self.current_move = [x, num_rotations]
+
+        for _ in range(num_rotations):
+            self.piece = rotate(self.piece)
+
+        while not self.check_collision(self.piece, self.current_pos):
+            self.current_pos["y"] += 1
+            if render:
+                self.render(vid)
 
         overflow = self.truncate(self.piece, self.current_pos)
         if overflow:
@@ -249,8 +302,11 @@ class Tetris:
         self.board = self.store(self.piece, self.current_pos)
 
         lines_cleared, self.board = self.check_cleared_rows(self.board)
+        # score = 1 + (lines_cleared ** 2) * self.width
         score = 1 + (lines_cleared ** 2) * self.width
-        reward += 1 + 20 * lines_cleared
+        reward = np.count_nonzero(self.piece) + 20 * lines_cleared
+        # reward = self.pieces_counter + 10 * lines_cleared
+        # reward = 1 + (lines_cleared ** 2) * self.width
         self.score += score
         self.tetrominoes += 1
         self.cleared_lines += lines_cleared
@@ -258,9 +314,9 @@ class Tetris:
             self.new_piece()
         if self.gameOver:
             self.score -= 2
-            reward = -10
+            reward -= 10
 
-        return reward, self.score, self.gameOver
+        return self.score, self.gameOver
 
     def render(self, video=None):
         if not self.gameOver:
@@ -302,7 +358,7 @@ class Tetris:
             video.write(img)
 
         cv2.imshow("Deep Q-Learning Tetris", img)
-        cv2.waitKey(1)
+        cv2.waitKey(self.renderDelay)
 
 
 def rotate(piece):

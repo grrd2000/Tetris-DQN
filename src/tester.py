@@ -3,7 +3,7 @@ import argparse
 import numpy
 import torch
 import cv2
-from src.tetris_new import Tetris_new
+from src.tetris import Tetris
 
 video = True
 
@@ -24,19 +24,10 @@ def get_args():
 
 
 def test(options):
-    # print("Cuda available: ", torch.cuda.is_available())
-    '''if torch.cuda.is_available():
-        torch.cuda.manual_seed(123)
-    else:
-        torch.manual_seed(123)
-    if torch.cuda.is_available():
-        model = torch.load("{}/tetris_3000".format(options.saved_path))
-    else:
-        model = torch.load("{}/tetris_3000".format(options.saved_path), map_location=lambda storage, loc: storage)'''
     torch.manual_seed(777)
-    model = torch.load("{}/tetris_best".format(options.saved_path), map_location=lambda storage, loc: storage)
+    model = torch.load("{}/tetris_best_1012".format(options.saved_path), map_location=lambda storage, loc: storage)
     model.eval()
-    env = Tetris_new(width=options.width, height=options.height,
+    env = Tetris(width=options.width, height=options.height,
                  block_size=options.block_size, maxScore=options.max_epoch_score)
     env.reset()
     fourcc = cv2.VideoWriter_fourcc(*'FMP4')
@@ -51,8 +42,8 @@ def test(options):
         predictions = model(next_states)[:, 0]
         index = torch.argmax(predictions).item()
         action = next_actions[index]
-        print(env.step(action, render=video, vid=out))
-        _, _, done = env.step(action, render=video, vid=out)
+        print(env.step_for_tests(action, render=video, vid=out))
+        _, done = env.step_for_tests(action, render=video, vid=out)
 
         if done:
             out.release()
