@@ -8,9 +8,14 @@ from src.tools import plot
 from collections import deque
 
 MAX_MEMORY = 100_000
-BATCH_SIZE = 1000
+BATCH_SIZE = 128
+HIDDEN_LAYER = 32
 GAMMA = 0.9
 LR = 0.001
+EPS_START = 0.975
+EPS_END = 0.002
+EPS_DECAY = 750
+
 RENDER = False
 PLOT = True
 
@@ -22,9 +27,9 @@ class Agent:
     def __init__(self):
         self.n_epochs = 0
         self.epsilon = 0  # randomness
-        self.gamma = 0.95  # discount rate
+        self.gamma = GAMMA  # discount rate
         self.memory = deque(maxlen=MAX_MEMORY)
-        self.model = DQNet(4, 128, 1)
+        self.model = DQNet(4, HIDDEN_LAYER, 1)
         self.trainer = QTrainer(self.model, lr=LR, gamma=self.gamma)
 
     def get_states(self, game):
@@ -44,39 +49,8 @@ class Agent:
     def train_batch_memory(self):
         self.trainer.train_step(self.memory)
 
-    def get_action(self, game):
-        self.epsilon = 0.001 + (max(450 - self.n_epochs, 0) * (0.925 - 0.001) / 450)
-        u = random()
-        random_action = u <= self.epsilon
-
-        next_steps = game.get_next_states_tensor()
-        # print(next_steps)
-        next_actions, next_states = zip(*next_steps.items())
-        # print(next_states)
-        prediction = np.zeros(len(next_states))
-
-        # self.model.eval()
-        for i in range(len(next_states)):
-            state = torch.tensor(next_states[i], dtype=torch.float)
-            # print(state)
-            with torch.no_grad():
-                prediction[i] = self.model(state)
-        # self.model.train()
-        # print(prediction)
-        prediction = torch.tensor(prediction, dtype=torch.float)
-        # print(prediction)
-        # print("Random action: ", random_action)
-
-        if random_action:
-            index = randint(0, len(next_steps) - 1)
-        else:
-            index = torch.argmax(prediction).item()
-        # print(index)
-
-        return index
-
     def get_action_new(self, state):
-        self.epsilon = 0.001 + (max(500 - self.n_epochs, 0) * (0.95 - 0.001) / 500)
+        self.epsilon = EPS_END + (max(EPS_DECAY - self.n_epochs, 0) * (EPS_START - EPS_END) / EPS_DECAY)
         # self.epsilon = 90 - self.n_epochs
         u = random()
         random_action = u <= self.epsilon
@@ -130,7 +104,7 @@ def get_args():
 def train(options):
     plot_scores = []
     plot_average_scores = []
-    total_score = 0
+    total_score = deque(maxlen=60)
     max_score = 0
     agent = Agent()
     env = Tetris()
@@ -160,8 +134,8 @@ def train(options):
 
             if PLOT:
                 plot_scores.append(score)
-                total_score += score
-                mean_score = total_score / agent.n_epochs
+                total_score.append(score)
+                mean_score = sum(total_score) / len(total_score)
                 plot_average_scores.append(mean_score)
                 if agent.n_epochs % 1 == 0:
                     plot(plot_scores, plot_average_scores)

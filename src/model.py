@@ -37,34 +37,6 @@ class QTrainer:
         self.criterion = nn.MSELoss()
 
     def train_step(self, replay_memory):
-        '''state = torch.tensor(state, dtype=torch.float)
-        action = torch.tensor(action, dtype=torch.long)
-        next_state = torch.tensor(next_state, dtype=torch.float)
-        reward = torch.tensor(reward, dtype=torch.float)
-
-        if len(state.shape) == 1:
-            state = torch.unsqueeze(state, 0)
-            next_state = torch.unsqueeze(next_state, 0)
-            action = torch.unsqueeze(action, 0)
-            reward = torch.unsqueeze(reward, 0)
-            game_over = (game_over,)
-
-        # 1: predicted Q values with current state
-        pred = self.model(state)
-        print("state", state)
-        print("pred", pred)
-
-        # 2: Q_new = r + y * max(next_predicted Q value)
-        target = pred.clone()
-        for idx in range(len(game_over)):
-            Q_new = reward[idx]
-            if not game_over[idx]:
-                Q_new = reward[idx] + self.gamma * torch.max(self.model(next_state[idx]))
-
-            if len(game_over) > 1:
-                target[idx] = Q_new
-'''
-
         if len(replay_memory) <= 100_000 / 10:
             batch = sample(replay_memory, min(len(replay_memory), 1000))
             state_batch, reward_batch, next_state_batch, done_batch = zip(*batch)
