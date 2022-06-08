@@ -1,20 +1,19 @@
 import argparse
-from random import random, randint, sample
-import numpy as np
+from random import random, randint
 import torch
-from src.model import DQNet, QTrainer
+from src.model_IV import DQNet, QTrainer
 from src.tetris import Tetris
 from src.tools import plot
 from collections import deque
 
 MAX_MEMORY = 100_000
-BATCH_SIZE = 128
-HIDDEN_LAYER = 32
+BATCH_SIZE = 256
+HIDDEN_LAYER = 64
 GAMMA = 0.9
-LR = 0.001
-EPS_START = 0.975
-EPS_END = 0.002
-EPS_DECAY = 750
+LR = 0.0025
+EPS_START = 0.99
+EPS_END = 0.001
+EPS_DECAY = 600
 
 RENDER = False
 PLOT = True
@@ -38,24 +37,16 @@ class Agent:
     def remember(self, state, reward, next_state, game_over):
         self.memory.append([state, reward, next_state, game_over])
 
-    def train_replay_memory(self):
-        if len(self.memory) > BATCH_SIZE:
-            mini_sample = sample(self.memory, BATCH_SIZE)
-        else:
-            mini_sample = self.memory
-
-        self.trainer.train_step(mini_sample)
-
     def train_batch_memory(self):
         self.trainer.train_step(self.memory)
 
-    def get_action_new(self, state):
+    def get_action(self, state):
         self.epsilon = EPS_END + (max(EPS_DECAY - self.n_epochs, 0) * (EPS_START - EPS_END) / EPS_DECAY)
         # self.epsilon = 90 - self.n_epochs
         u = random()
         random_action = u <= self.epsilon
         # print("Epsilon: ", self.epsilon)
-        print("Random action: ", random_action)
+        # print("Random action: ", random_action)
 
         next_actions, next_states = zip(*state.items())
 
@@ -112,7 +103,7 @@ def train(options):
     while True:
         state_old = agent.get_states(env)
 
-        final_move = agent.get_action_new(state_old)
+        final_move = agent.get_action(state_old)
         next_state, action = final_move
 
         reward, score, game_over = env.step(action, render=RENDER)
@@ -121,16 +112,18 @@ def train(options):
         agent.train_batch_memory()
 
         if game_over:
-            print("Game Over ", final_move)
+            # print("Game Over ", final_move)
             state = env.reset()
             agent.n_epochs += 1
 
-            if score > max_score:
+            if score > max_score and score >= 800:
                 max_score = score
                 print("~BEST SCORE!~ Score: {}, Epoch: {}".format(max_score, agent.n_epochs))
-                torch.save(agent.model, "{}/tetris_best_{}".format(options.saved_path, agent.n_epochs))
+                torch.save(agent.model, "{}/tetris_best_epoch{}_score_{}".format(options.saved_path, agent.n_epochs, max_score))
 
             print('Game', agent.n_epochs, 'Score', score, 'Record', max_score)
+            if env.cleared_lines > 0:
+                print("Lines cleared: {}".format(env.cleared_lines))
 
             if PLOT:
                 plot_scores.append(score)

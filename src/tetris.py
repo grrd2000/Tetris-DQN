@@ -99,13 +99,13 @@ class Tetris:
 
         return new_tensor
 
-    def get_state_properties(self, board):
-        lines_cleared, board = self.check_cleared_rows(board)
-        holes = self.get_holes(board)
-        bumpiness, height = self.get_bumpiness_and_height(board)
-        new_state = torch.FloatTensor([self.current_move[0], self.current_move[1], lines_cleared, holes, bumpiness, height])
-
-        return new_state
+    #    def get_state_properties(self, board):
+    #        lines_cleared, board = self.check_cleared_rows(board)
+    #        holes = self.get_holes(board)
+    #        bumpiness, height = self.get_bumpiness_and_height(board)
+    #        new_state = torch.FloatTensor([self.current_move[0], self.current_move[1], lines_cleared, holes, bumpiness, height])
+    #
+    #        return new_state
 
     def get_holes(self, board):
         num_holes = 0
@@ -152,29 +152,29 @@ class Tetris:
             curr_piece = rotate(curr_piece)
         return states
 
-    def get_next_states(self):
-        states = {}
-        piece_id = self.ind
-        curr_piece = [row[:] for row in self.piece]
-        if piece_id == 0:
-            num_rotations = 1
-        elif piece_id == 2 or piece_id == 3 or piece_id == 4:
-            num_rotations = 2
-        else:
-            num_rotations = 4
-
-        for i in range(num_rotations):
-            valid_xs = self.width - len(curr_piece[0])
-            for x in range(valid_xs + 1):
-                piece = [row[:] for row in curr_piece]
-                pos = {"x": x, "y": 0}
-                while not self.check_collision(piece, pos):
-                    pos["y"] += 1
-                self.truncate(piece, pos)
-                board = self.store(piece, pos)
-                states[self.moves.index((x, i))] = self.get_state_properties(board)
-            curr_piece = rotate(curr_piece)
-        return states
+    #    def get_next_states(self):
+    #        states = {}
+    #        piece_id = self.ind
+    #        curr_piece = [row[:] for row in self.piece]
+    #        if piece_id == 0:
+    #            num_rotations = 1
+    #        elif piece_id == 2 or piece_id == 3 or piece_id == 4:
+    #            num_rotations = 2
+    #        else:
+    #            num_rotations = 4
+    #
+    #        for i in range(num_rotations):
+    #            valid_xs = self.width - len(curr_piece[0])
+    #            for x in range(valid_xs + 1):
+    #                piece = [row[:] for row in curr_piece]
+    #                pos = {"x": x, "y": 0}
+    #                while not self.check_collision(piece, pos):
+    #                    pos["y"] += 1
+    #                self.truncate(piece, pos)
+    #                board = self.store(piece, pos)
+    #                states[self.moves.index((x, i))] = self.get_state_properties(board)
+    #            curr_piece = rotate(curr_piece)
+    #        return states
 
     def get_current_board_state(self):
         board = [x[:] for x in self.board]
@@ -268,9 +268,11 @@ class Tetris:
         lines_cleared, self.board = self.check_cleared_rows(self.board)
         # score = 1 + (lines_cleared ** 2) * self.width
         score = 1 + (lines_cleared ** 2) * self.width
-        reward = np.count_nonzero(self.piece) + 20 * lines_cleared
+        # reward = np.count_nonzero(self.piece) + 20 * lines_cleared
         # reward = self.pieces_counter + 10 * lines_cleared
+        # reward = np.count_nonzero(self.piece) + (lines_cleared ** 2) * self.width
         # reward = 1 + (lines_cleared ** 2) * self.width
+        reward = 2 + (lines_cleared ** 2) * self.width + self.cleared_lines
         self.score += score
         self.tetrominoes += 1
         self.cleared_lines += lines_cleared
@@ -278,7 +280,7 @@ class Tetris:
             self.new_piece()
         if self.gameOver:
             self.score -= 2
-            reward -= 10
+            reward -= 25
 
         return reward, self.score, self.gameOver
 

@@ -25,7 +25,7 @@ def get_args():
 
 def test(options):
     torch.manual_seed(777)
-    model = torch.load("{}/tetris_best_1012".format(options.saved_path), map_location=lambda storage, loc: storage)
+    model = torch.load("{}/tetris_best_epoch920_score_1557".format(options.saved_path), map_location=lambda storage, loc: storage)
     model.eval()
     env = Tetris(width=options.width, height=options.height,
                  block_size=options.block_size, maxScore=options.max_epoch_score)
