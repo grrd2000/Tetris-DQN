@@ -207,7 +207,6 @@ class Tetris:
             self.gameOver = True
 
     def check_collision(self, piece, pos):
-        # print(pos)
         future_y = pos["y"] + 1
         for y in range(len(piece)):
             for x in range(len(piece[y])):
