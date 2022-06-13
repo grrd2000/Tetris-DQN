@@ -17,7 +17,7 @@ def get_args():
     parser.add_argument("--max_epoch_score", type=int, default=100000, help="Maximum points per epoch")
     parser.add_argument("--fps", type=int, default=120, help="frames per second")
     parser.add_argument("--saved_path", type=str, default="output/trained_models")
-    parser.add_argument("--output", type=str, default="output/recordings/output.avi")
+    parser.add_argument("--output", type=str, default="output/recordings/output")
 
     args = parser.parse_args()
     return args
@@ -25,13 +25,13 @@ def get_args():
 
 def test(options):
     torch.manual_seed(777)
-    model = torch.load("{}/tetris_best_epoch920_score_1557".format(options.saved_path), map_location=lambda storage, loc: storage)
+    model = torch.load("{}/tetris_best_epoch930_score_8401".format(options.saved_path), map_location=lambda storage, loc: storage)
     model.eval()
     env = Tetris(width=options.width, height=options.height,
                  block_size=options.block_size, maxScore=options.max_epoch_score)
     env.reset()
     fourcc = cv2.VideoWriter_fourcc(*'FMP4')
-    out = cv2.VideoWriter(options.output, fourcc, options.fps,
+    out = cv2.VideoWriter(options.output+"_epoch891_score_10037.avi", fourcc, options.fps,
                           (int(1.5 * options.width * options.block_size), options.height * options.block_size))
     while True:
         next_steps = env.get_next_states_tensor()

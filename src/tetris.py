@@ -54,7 +54,7 @@ class Tetris:
              (9, 0), (9, 1), (9, 2), (9, 3),
              ]
 
-    def __init__(self, height=24, width=10, block_size=20, maxScore=10000):
+    def __init__(self, height=24, width=10, block_size=20, maxScore=20000):
         self.current_move = None
         self.pieces_counter = None
         self.current_pos = None
@@ -90,6 +90,18 @@ class Tetris:
         self.current_move = [self.current_pos["x"], 0]
         self.gameOver = False
         return self.get_state_properties_tensor(self.board)
+
+    def rotate(self, piece):
+        num_rows_orig = num_cols_new = len(piece)
+        num_rows_new = len(piece[0])
+        rotated_array = []
+
+        for i in range(num_rows_new):
+            new_row = [0] * num_cols_new
+            for j in range(num_cols_new):
+                new_row[j] = piece[(num_rows_orig - 1) - j][i]
+            rotated_array.append(new_row)
+        return rotated_array
 
     def get_state_properties_tensor(self, board):
         lines_cleared, board = self.check_cleared_rows(board)
@@ -149,7 +161,7 @@ class Tetris:
                 self.truncate(piece, pos)
                 board = self.store(piece, pos)
                 states[(x, i)] = self.get_state_properties_tensor(board)
-            curr_piece = rotate(curr_piece)
+            curr_piece = self.rotate(curr_piece)
         return states
 
     #    def get_next_states(self):
@@ -195,6 +207,7 @@ class Tetris:
             self.gameOver = True
 
     def check_collision(self, piece, pos):
+        # print(pos)
         future_y = pos["y"] + 1
         for y in range(len(piece)):
             for x in range(len(piece[y])):
@@ -247,12 +260,15 @@ class Tetris:
         return board
 
     def step(self, action, render=True, vid=None):
+        #print(action)
+
         x, num_rotations = action
+        #print(num_rotations)
         self.current_pos = {"x": x, "y": 0}
         self.current_move = [x, num_rotations]
 
         for _ in range(num_rotations):
-            self.piece = rotate(self.piece)
+            self.piece = self.rotate(self.piece)
 
         while not self.check_collision(self.piece, self.current_pos):
             self.current_pos["y"] += 1
@@ -271,8 +287,8 @@ class Tetris:
         # reward = np.count_nonzero(self.piece) + 20 * lines_cleared
         # reward = self.pieces_counter + 10 * lines_cleared
         # reward = np.count_nonzero(self.piece) + (lines_cleared ** 2) * self.width
-        # reward = 1 + (lines_cleared ** 2) * self.width
-        reward = 2 + (lines_cleared ** 2) * self.width + self.cleared_lines
+        reward = 1 + (lines_cleared * 20)
+        # reward = 2 + (lines_cleared ** 2) * self.width + self.cleared_lines
         self.score += score
         self.tetrominoes += 1
         self.cleared_lines += lines_cleared
@@ -280,7 +296,7 @@ class Tetris:
             self.new_piece()
         if self.gameOver:
             self.score -= 2
-            reward -= 25
+            reward -= 10
 
         return reward, self.score, self.gameOver
 
@@ -290,7 +306,7 @@ class Tetris:
         self.current_move = [x, num_rotations]
 
         for _ in range(num_rotations):
-            self.piece = rotate(self.piece)
+            self.piece = self.rotate(self.piece)
 
         while not self.check_collision(self.piece, self.current_pos):
             self.current_pos["y"] += 1
@@ -361,16 +377,3 @@ class Tetris:
 
         cv2.imshow("Deep Q-Learning Tetris", img)
         cv2.waitKey(self.renderDelay)
-
-
-def rotate(piece):
-    num_rows_orig = num_cols_new = len(piece)
-    num_rows_new = len(piece[0])
-    rotated_array = []
-
-    for i in range(num_rows_new):
-        new_row = [0] * num_cols_new
-        for j in range(num_cols_new):
-            new_row[j] = piece[(num_rows_orig - 1) - j][i]
-        rotated_array.append(new_row)
-    return rotated_array

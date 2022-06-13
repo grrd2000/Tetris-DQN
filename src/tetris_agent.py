@@ -1,19 +1,19 @@
 import argparse
 from random import random, randint
 import torch
-from src.model_IV import DQNet, QTrainer
+from src.model_III import DQNet, QTrainer
 from src.tetris import Tetris
 from src.tools import plot
 from collections import deque
 
 MAX_MEMORY = 100_000
 BATCH_SIZE = 256
-HIDDEN_LAYER = 64
-GAMMA = 0.9
+HIDDEN_LAYER = 128
+GAMMA = 0.7
 LR = 0.0025
 EPS_START = 0.99
 EPS_END = 0.001
-EPS_DECAY = 600
+EPS_DECAY = 900
 
 RENDER = False
 PLOT = True
@@ -42,11 +42,8 @@ class Agent:
 
     def get_action(self, state):
         self.epsilon = EPS_END + (max(EPS_DECAY - self.n_epochs, 0) * (EPS_START - EPS_END) / EPS_DECAY)
-        # self.epsilon = 90 - self.n_epochs
         u = random()
         random_action = u <= self.epsilon
-        # print("Epsilon: ", self.epsilon)
-        # print("Random action: ", random_action)
 
         next_actions, next_states = zip(*state.items())
 
