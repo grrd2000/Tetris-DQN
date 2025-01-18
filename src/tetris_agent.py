@@ -1,9 +1,9 @@
 import argparse
 from random import random, randint
 import torch
-from src.model_III import DQNet, QTrainer
-from src.tetris import Tetris
-from src.tools import plot
+from model_III import DQNet, QTrainer
+from tetris import Tetris
+from tools import plot
 from collections import deque
 
 MAX_MEMORY = 100_000

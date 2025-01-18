@@ -1,9 +1,8 @@
 import argparse
 
-import numpy
 import torch
 import cv2
-from src.tetris import Tetris
+from tetris import Tetris
 
 video = True
 
@@ -25,7 +24,8 @@ def get_args():
 
 def test(options):
     torch.manual_seed(777)
-    model = torch.load("{}/tetris_best_epoch930_score_8401".format(options.saved_path), map_location=lambda storage, loc: storage)
+    print("{}/tetris_best_epoch891_score_10037".format(options.saved_path))
+    model = torch.load("{}/tetris_best_epoch891_score_10037".format(options.saved_path), map_location=lambda storage, loc: storage)
     model.eval()
     env = Tetris(width=options.width, height=options.height,
                  block_size=options.block_size, maxScore=options.max_epoch_score)
