@@ -15,7 +15,7 @@ EPS_START = 0.99
 EPS_END = 0.001
 EPS_DECAY = 100
 
-RENDER = True
+RENDER = False
 PLOT = True
 
 

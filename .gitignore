@@ -1,0 +1,34 @@
+# Ignore Python bytecode files
+*.pyc
+*.pyo
+*.pyd
+__pycache__/
+
+# Ignore virtual environment directories
+venv/
+
+# Ignore Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# Ignore system files
+.DS_Store
+Thumbs.db
+
+# Ignore IDE and editor specific files
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Ignore log files
+*.log
+
+# Ignore compiled files
+*.o
+*.out
+*.class
+
+# Ignore Tetris_DQN specific files
+data/
+models/
+results/

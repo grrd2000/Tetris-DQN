@@ -1,0 +1,9 @@
+numpy
+torch
+gym
+pygame
+matplotlib
+scipy
+pillow
+opencv-python
+ipython
